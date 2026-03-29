@@ -5,8 +5,10 @@
         static void Main(string[] args)
         {
             Display.WelcomeMessage();
-            
-           ChatBot bot = new ChatBot();
+
+            AudioGreeting.PLayGreeting();
+
+            ChatBot bot = new ChatBot();
            bot.Botname = "SecurityBot";
 
 
