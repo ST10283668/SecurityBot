@@ -1,11 +1,10 @@
 name:CI
 on:[push]
-
 jobs:
   build:
-      runs-on:windows-Latest
-      steps:
-      -uses:actions/checkout@v3
-      -uses:actions/setup-donet@v3
-      -run:dotnet restore
-      -run:dotnet build
+    runs-on:windows-Latest
+    steps:
+      -uses: actions/checkout@v3
+      -uses: actions/setup-donet@v3
+      -run: dotnet restore
+      -run: dotnet build
