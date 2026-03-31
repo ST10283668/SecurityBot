@@ -82,7 +82,7 @@ namespace Securitybot
                 Console.WriteLine("Bot: Invalid option. Try again.");
             }
 
-            Console.WriteLine("Thank you " + userName + "!");
+            Console.WriteLine("Thank you " + userName + "");
         }
     }
 }

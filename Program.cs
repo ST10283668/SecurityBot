@@ -10,6 +10,8 @@
 
             Bot.CyberChat();
 
+            Console.ReadKey();
+
             ChatBot bot = new ChatBot();
            bot.Botname = "SecurityBot";
 
