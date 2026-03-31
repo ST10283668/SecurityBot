@@ -8,6 +8,8 @@
 
             AudioGreeting.PLayGreeting();
 
+            Bot.CyberChat();
+
             ChatBot bot = new ChatBot();
            bot.Botname = "SecurityBot";
 
