@@ -1,13 +1,11 @@
-name: CI
-on:
-push:
-branches:
-- master
+name:CI
+on:[push]
+
 jobs:
-build:
-runs-on: windows-latest
-steps:
-- uses: actions/checkout@v3
-- uses: actions/setup-dotnet@v3
-- run: dotnet restore
-- run: dotnet build
+  build:
+    runs-on:windows-Latest
+    steps:
+      -uses:actions/checkout@v3
+      -uses:actions/setup-donet@v3
+      -run:dotnet restore
+      -run:dotnet build
