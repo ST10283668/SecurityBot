@@ -3,9 +3,17 @@ namespace Securitybot
     internal class ChatbotEngine
     {
         private readonly Dictionary<string, List<string>> topicResponses;
+        private readonly Dictionary<string, string> topicShortcuts;
 
         public ChatbotEngine()
         {
+            topicShortcuts = new Dictionary<string, string>
+            {
+                { "a", "password" },
+                { "b", "phishing" },
+                { "c", "privacy" }
+            };
+
             topicResponses = new Dictionary<string, List<string>>
             {
                 {
@@ -48,12 +56,15 @@ namespace Securitybot
 
         public string GetOpeningMessage()
         {
-            return "Hello! Welcome to SecurityBot. I am here to help South African citizens learn safer cybersecurity habits.";
+            return "Welcome to SecurityBot.";
         }
 
         public string GetProgressMessage()
         {
-            return "For now, type a message below. In the next updates, I will add topic recognition, memory, random tips, and sentiment detection.";
+            return "Choose a topic or type your own question:" + Environment.NewLine
+                + "A) Password safety" + Environment.NewLine
+                + "B) Phishing awareness" + Environment.NewLine
+                + "C) Privacy protection";
         }
 
         public string GetResponse(string userMessage)
@@ -86,6 +97,11 @@ namespace Securitybot
 
             foreach (string word in words)
             {
+                if (topicShortcuts.TryGetValue(word, out string? shortcutTopic))
+                {
+                    return shortcutTopic;
+                }
+
                 if (topicResponses.TryGetValue(word, out List<string>? responses) && responses.Count > 0)
                 {
                     return word;
