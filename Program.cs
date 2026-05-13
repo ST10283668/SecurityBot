@@ -1,28 +1,12 @@
-﻿namespace Securitybot
+namespace Securitybot
 {
-    internal class Program
+    internal static class Program
     {
-        static void Main(string[] args)
+        [STAThread]
+        private static void Main()
         {
-            Display.WelcomeMessage();
-
-            AudioGreeting.PLayGreeting();
-
-            Bot.CyberChat();
-
-            Console.ReadKey();
-
-            ChatBot bot = new ChatBot();
-           bot.Botname = "SecurityBot";
-
-
-            Console.WriteLine("What is your name?");
-            bot.UserName = Console.ReadLine();
-
-
-            bot.Greeting = "Hello ,"+bot.UserName+"  I am "+bot.Botname+", here to  help with Cyber Security needs ";
-            Console.WriteLine(bot.Greeting);    
-
+            ApplicationConfiguration.Initialize();
+            Application.Run(new MainForm());
         }
     }
 }

@@ -7,12 +7,17 @@ namespace Securitybot
 {
     internal class AudioGreeting
     {
-        public static void PLayGreeting() 
+        public static void PlayGreeting()
         {
-         SoundPlayer player = new SoundPlayer("welcome.wav");
-         player.Play();
-            
-
+            try
+            {
+                SoundPlayer player = new SoundPlayer("welcome.wav");
+                player.Play();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex.Message);
+            }
         }
     }
 }
