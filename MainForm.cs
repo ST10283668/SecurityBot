@@ -5,12 +5,15 @@ namespace Securitybot
 {
     internal class MainForm : Form
     {
+        private readonly ChatbotEngine chatbotEngine;
         private readonly TextBox chatDisplay;
         private readonly TextBox messageInput;
         private readonly Button sendButton;
 
         public MainForm()
         {
+            chatbotEngine = new ChatbotEngine();
+
             Text = "SecurityBot - Cybersecurity Awareness Assistant";
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new Size(900, 650);
@@ -110,8 +113,8 @@ namespace Securitybot
         private void MainForm_Load(object? sender, EventArgs e)
         {
             AudioGreeting.PlayGreeting();
-            AddBotMessage("Hello! Welcome to SecurityBot. I am here to help South African citizens learn safer cybersecurity habits.");
-            AddBotMessage("For now, type a message below. In the next updates, I will add topic recognition, memory, random tips, and sentiment detection.");
+            AddBotMessage(chatbotEngine.GetOpeningMessage());
+            AddBotMessage(chatbotEngine.GetProgressMessage());
         }
 
         private void SendButton_Click(object? sender, EventArgs e)
@@ -136,13 +139,13 @@ namespace Securitybot
 
                 if (string.IsNullOrWhiteSpace(message))
                 {
-                    AddBotMessage("Please type a message before pressing Send.");
+                    AddBotMessage(chatbotEngine.GetResponse(message));
                     return;
                 }
 
                 AddUserMessage(message);
                 messageInput.Clear();
-                AddBotMessage("Thanks for your message. My full cybersecurity response engine will be added in the next progression step.");
+                AddBotMessage(chatbotEngine.GetResponse(message));
             }
             catch (Exception ex)
             {
