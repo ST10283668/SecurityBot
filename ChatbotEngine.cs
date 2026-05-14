@@ -2,21 +2,60 @@ namespace Securitybot
 {
     internal class ChatbotEngine
     {
+        private enum ConversationStep
+        {
+            AskingName,
+            AskingFavouriteTopic,
+            Ready
+        }
+
         private readonly Random random;
+        private readonly UserMemory userMemory;
         private readonly Dictionary<string, List<string>> topicResponses;
         private readonly Dictionary<string, string> topicShortcuts;
+        private readonly Dictionary<string, string> sentimentWords;
+        private readonly Dictionary<string, string> sentimentResponses;
+        private ConversationStep conversationStep;
         private string? previousTopic;
         private string? previousAnswer;
 
         public ChatbotEngine()
         {
             random = new Random();
+            userMemory = new UserMemory();
+            conversationStep = ConversationStep.AskingName;
 
             topicShortcuts = new Dictionary<string, string>
             {
                 { "a", "password" },
                 { "b", "phishing" },
-                { "c", "privacy" }
+                { "c", "privacy" },
+                { "d", "scam" },
+                { "e", "browsing" }
+            };
+
+            sentimentWords = new Dictionary<string, string>
+            {
+                { "angry", "angry" },
+                { "mad", "angry" },
+                { "frustrated", "angry" },
+                { "confused", "confused" },
+                { "unsure", "confused" },
+                { "lost", "confused" },
+                { "sad", "sad" },
+                { "upset", "sad" },
+                { "unhappy", "sad" },
+                { "happy", "happy" },
+                { "good", "happy" },
+                { "great", "happy" }
+            };
+
+            sentimentResponses = new Dictionary<string, string>
+            {
+                { "angry", "I understand why that would be frustrating. Let us slow it down and deal with one cybersecurity step at a time." },
+                { "confused", "That is okay. Cybersecurity can feel confusing at first, so I will explain it another way." },
+                { "sad", "I am sorry you are feeling that way. Online safety problems can be stressful, but you are doing the right thing by asking." },
+                { "happy", "I am glad to hear that. Since you are feeling positive, let us build on that with a useful safety habit." }
             };
 
             topicResponses = new Dictionary<string, List<string>>
@@ -71,15 +110,22 @@ namespace Securitybot
 
         public string GetOpeningMessage()
         {
-            return "Welcome to SecurityBot.";
+            return "Welcome to SecurityBot. What is your name?";
         }
 
         public string GetProgressMessage()
         {
-            return "Choose a topic or type your own question:" + Environment.NewLine
+            return "After that, I will ask for your favourite cybersecurity topic.";
+        }
+
+        private string GetTopicMenu()
+        {
+            return "Choose your favourite cybersecurity topic:" + Environment.NewLine
                 + "A) Password safety" + Environment.NewLine
                 + "B) Phishing awareness" + Environment.NewLine
-                + "C) Privacy protection";
+                + "C) Privacy protection" + Environment.NewLine
+                + "D) Scam prevention" + Environment.NewLine
+                + "E) Safe browsing";
         }
 
         public string GetResponse(string userMessage)
@@ -91,7 +137,30 @@ namespace Securitybot
                     return "Please type a message before pressing Send.";
                 }
 
+                if (conversationStep == ConversationStep.AskingName)
+                {
+                    return SaveName(userMessage);
+                }
+
+                if (conversationStep == ConversationStep.AskingFavouriteTopic)
+                {
+                    return SaveFavouriteTopic(userMessage);
+                }
+
+                if (IsNameQuestion(userMessage))
+                {
+                    return userMemory.HasName()
+                        ? $"Your name is {userMemory.UserName}."
+                        : "I do not know your name yet.";
+                }
+
                 string? topic = FindTopic(userMessage);
+                string? sentiment = FindSentiment(userMessage);
+
+                if (sentiment != null)
+                {
+                    return BuildSentimentResponse(sentiment, topic);
+                }
 
                 if (topic != null)
                 {
@@ -103,7 +172,7 @@ namespace Securitybot
                     return ContinuePreviousTopic();
                 }
 
-                return "I am not sure I understand that topic yet. Try asking me about passwords, phishing, scams, privacy, or safe browsing.";
+                return GetUnknownTopicResponse();
             }
             catch (Exception)
             {
@@ -111,9 +180,34 @@ namespace Securitybot
             }
         }
 
+        private string SaveName(string userMessage)
+        {
+            userMemory.UserName = userMessage.Trim();
+            conversationStep = ConversationStep.AskingFavouriteTopic;
+
+            return $"Nice to meet you, {userMemory.UserName}." + Environment.NewLine + GetTopicMenu();
+        }
+
+        private string SaveFavouriteTopic(string userMessage)
+        {
+            string? topic = FindTopic(userMessage);
+
+            if (topic == null)
+            {
+                return "Please choose A, B, C, D, or E, or type a topic like password, phishing, privacy, scam, or browsing.";
+            }
+
+            userMemory.FavouriteTopic = topic;
+            conversationStep = ConversationStep.Ready;
+            previousTopic = topic;
+
+            return $"Great, {userMemory.UserName}. I will remember that you are interested in {topic}." + Environment.NewLine
+                + SelectTopicResponse(topic);
+        }
+
         private string? FindTopic(string userMessage)
         {
-            List<string> words = new List<string>(userMessage.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+            List<string> words = GetWords(userMessage);
 
             foreach (string word in words)
             {
@@ -129,6 +223,71 @@ namespace Securitybot
             }
 
             return null;
+        }
+
+        private string? FindSentiment(string userMessage)
+        {
+            List<string> words = GetWords(userMessage);
+
+            foreach (string word in words)
+            {
+                if (sentimentWords.TryGetValue(word, out string? sentiment))
+                {
+                    return sentiment;
+                }
+            }
+
+            return null;
+        }
+
+        private bool IsNameQuestion(string userMessage)
+        {
+            List<string> words = GetWords(userMessage);
+            bool hasWhat = false;
+            bool hasMy = false;
+            bool hasName = false;
+
+            foreach (string word in words)
+            {
+                if (word == "what")
+                {
+                    hasWhat = true;
+                }
+                else if (word == "my")
+                {
+                    hasMy = true;
+                }
+                else if (word == "name")
+                {
+                    hasName = true;
+                }
+            }
+
+            return hasWhat && hasMy && hasName;
+        }
+
+        private string BuildSentimentResponse(string sentiment, string? topic)
+        {
+            string response = sentimentResponses[sentiment];
+
+            if (sentiment == "confused" && previousTopic != null)
+            {
+                return response + Environment.NewLine + ContinuePreviousTopic();
+            }
+
+            if (topic != null)
+            {
+                return response + Environment.NewLine + SelectTopicResponse(topic);
+            }
+
+            if (userMemory.HasFavouriteTopic())
+            {
+                return response + Environment.NewLine + "Because you are interested in "
+                    + userMemory.FavouriteTopic + ", here is a related tip:" + Environment.NewLine
+                    + SelectTopicResponse(userMemory.FavouriteTopic);
+            }
+
+            return response;
         }
 
         private string SelectTopicResponse(string topic)
@@ -156,7 +315,7 @@ namespace Securitybot
 
         private bool IsFollowUp(string userMessage)
         {
-            List<string> words = new List<string>(userMessage.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+            List<string> words = GetWords(userMessage);
             bool hasTell = false;
             bool hasMore = false;
             bool hasAnother = false;
@@ -200,6 +359,18 @@ namespace Securitybot
             return (hasTell && hasMore) || (hasAnother && hasTip) || (hasExplain && hasMore) || hasConfused || hasKnow;
         }
 
+        private List<string> GetWords(string userMessage)
+        {
+            string cleanedMessage = userMessage.ToLower()
+                .Replace("?", "")
+                .Replace(".", "")
+                .Replace(",", "")
+                .Replace("!", "")
+                .Replace("'", "");
+
+            return new List<string>(cleanedMessage.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        }
+
         private string ContinuePreviousTopic()
         {
             if (previousTopic == null)
@@ -208,6 +379,18 @@ namespace Securitybot
             }
 
             return "Here is another way to think about it:" + Environment.NewLine + SelectTopicResponse(previousTopic);
+        }
+
+        private string GetUnknownTopicResponse()
+        {
+            if (userMemory.HasFavouriteTopic())
+            {
+                return "I am not sure I understand that topic yet. Since you like "
+                    + userMemory.FavouriteTopic
+                    + ", you can ask for another tip about it, or ask about passwords, phishing, scams, privacy, or safe browsing.";
+            }
+
+            return "I am not sure I understand that topic yet. Try asking me about passwords, phishing, scams, privacy, or safe browsing.";
         }
     }
 }
