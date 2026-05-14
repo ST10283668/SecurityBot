@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -75,7 +76,7 @@ namespace Securitybot
                 else if (learnResponse == "C")
                     Console.WriteLine("Bot: Safe browsing means that when you are on the internet you should always be aware that websites could be unsafe. Only use reliable websites.");
                 else
-                    Console.WriteLine("Bot: Invalid response. Please choose from A, B and C.");
+                    Console.WriteLine("Bot: Invalid response. Please choose from A-E.");
             }
             else
             {

@@ -13,6 +13,7 @@ namespace Securitybot
         private readonly UserMemory userMemory;
         private readonly Dictionary<string, List<string>> topicResponses;
         private readonly Dictionary<string, string> topicShortcuts;
+        private readonly Dictionary<string, string> helpShortcuts;
         private readonly Dictionary<string, string> sentimentWords;
         private readonly Dictionary<string, string> sentimentResponses;
         private ConversationStep conversationStep;
@@ -31,7 +32,24 @@ namespace Securitybot
                 { "b", "phishing" },
                 { "c", "privacy" },
                 { "d", "scam" },
-                { "e", "browsing" }
+                { "e", "browsing" },
+                { "passwords", "password" },
+                { "scams", "scam" },
+                { "browse", "browsing" },
+                { "browser", "browsing" },
+                { "link", "browsing" },
+                { "links", "browsing" }
+            };
+
+            helpShortcuts = new Dictionary<string, string>
+            {
+                { "f", "more" },
+                { "g", "done" },
+                { "more", "more" },
+                { "help", "more" },
+                { "yes", "more" },
+                { "no", "done" },
+                { "satisfied", "done" }
             };
 
             sentimentWords = new Dictionary<string, string>
@@ -110,12 +128,12 @@ namespace Securitybot
 
         public string GetOpeningMessage()
         {
-            return "Welcome to SecurityBot. What is your name?";
+            return "Please type your name.";
         }
 
         public string GetProgressMessage()
         {
-            return "After that, I will ask for your favourite cybersecurity topic.";
+            return string.Empty;
         }
 
         private string GetTopicMenu()
@@ -137,6 +155,30 @@ namespace Securitybot
                     return "Please type a message before pressing Send.";
                 }
 
+                if (IsNameQuestion(userMessage))
+                {
+                    return userMemory.HasName()
+                        ? $"Your name is {userMemory.UserName}."
+                        : "I do not know your name yet.";
+                }
+
+                if (IsDoneMessage(userMessage))
+                {
+                    return "Thank you for chatting with SecurityBot. Stay alert online and keep practising safe cyber habits.";
+                }
+
+                string? helpChoice = FindHelpChoice(userMessage);
+
+                if (helpChoice == "more")
+                {
+                    return ContinuePreviousTopic();
+                }
+
+                if (helpChoice == "done")
+                {
+                    return "Thank you for chatting with SecurityBot. I am glad I could help. Stay safe online.";
+                }
+
                 if (conversationStep == ConversationStep.AskingName)
                 {
                     return SaveName(userMessage);
@@ -145,13 +187,6 @@ namespace Securitybot
                 if (conversationStep == ConversationStep.AskingFavouriteTopic)
                 {
                     return SaveFavouriteTopic(userMessage);
-                }
-
-                if (IsNameQuestion(userMessage))
-                {
-                    return userMemory.HasName()
-                        ? $"Your name is {userMemory.UserName}."
-                        : "I do not know your name yet.";
                 }
 
                 string? topic = FindTopic(userMessage);
@@ -164,7 +199,7 @@ namespace Securitybot
 
                 if (topic != null)
                 {
-                    return SelectTopicResponse(topic);
+                    return BuildAnswerWithPrompt(SelectTopicResponse(topic));
                 }
 
                 if (IsFollowUp(userMessage))
@@ -185,11 +220,20 @@ namespace Securitybot
             userMemory.UserName = userMessage.Trim();
             conversationStep = ConversationStep.AskingFavouriteTopic;
 
-            return $"Nice to meet you, {userMemory.UserName}." + Environment.NewLine + GetTopicMenu();
+            return $"Nice to meet you, {userMemory.UserName}." + Environment.NewLine
+                + "Please make your response by choosing the letter A, B, C, D, or E." + Environment.NewLine
+                + GetTopicMenu();
         }
 
         private string SaveFavouriteTopic(string userMessage)
         {
+            string? sentiment = FindSentiment(userMessage);
+
+            if (sentiment == "confused" || IsFollowUp(userMessage))
+            {
+                return "No problem. I am asking which cybersecurity topic you like most." + Environment.NewLine + GetTopicMenu();
+            }
+
             string? topic = FindTopic(userMessage);
 
             if (topic == null)
@@ -201,8 +245,7 @@ namespace Securitybot
             conversationStep = ConversationStep.Ready;
             previousTopic = topic;
 
-            return $"Great, {userMemory.UserName}. I will remember that you are interested in {topic}." + Environment.NewLine
-                + SelectTopicResponse(topic);
+            return BuildAnswerWithPrompt(SelectTopicResponse(topic));
         }
 
         private string? FindTopic(string userMessage)
@@ -240,6 +283,21 @@ namespace Securitybot
             return null;
         }
 
+        private string? FindHelpChoice(string userMessage)
+        {
+            List<string> words = GetWords(userMessage);
+
+            foreach (string word in words)
+            {
+                if (helpShortcuts.TryGetValue(word, out string? helpChoice))
+                {
+                    return helpChoice;
+                }
+            }
+
+            return null;
+        }
+
         private bool IsNameQuestion(string userMessage)
         {
             List<string> words = GetWords(userMessage);
@@ -266,6 +324,21 @@ namespace Securitybot
             return hasWhat && hasMy && hasName;
         }
 
+        private bool IsDoneMessage(string userMessage)
+        {
+            List<string> words = GetWords(userMessage);
+
+            foreach (string word in words)
+            {
+                if (word == "done" || word == "exit" || word == "quit" || word == "bye")
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private string BuildSentimentResponse(string sentiment, string? topic)
         {
             string response = sentimentResponses[sentiment];
@@ -277,14 +350,19 @@ namespace Securitybot
 
             if (topic != null)
             {
-                return response + Environment.NewLine + SelectTopicResponse(topic);
+                return BuildAnswerWithPrompt(response + Environment.NewLine + SelectTopicResponse(topic));
+            }
+
+            if (previousTopic != null)
+            {
+                return BuildAnswerWithPrompt(response + Environment.NewLine + SelectTopicResponse(previousTopic));
             }
 
             if (userMemory.HasFavouriteTopic())
             {
-                return response + Environment.NewLine + "Because you are interested in "
+                return BuildAnswerWithPrompt(response + Environment.NewLine + "Because you are interested in "
                     + userMemory.FavouriteTopic + ", here is a related tip:" + Environment.NewLine
-                    + SelectTopicResponse(userMemory.FavouriteTopic);
+                    + SelectTopicResponse(userMemory.FavouriteTopic));
             }
 
             return response;
@@ -375,10 +453,10 @@ namespace Securitybot
         {
             if (previousTopic == null)
             {
-                return "I can explain more once we have started a topic. Choose A, B, or C to begin.";
+                return "I can explain more once we have started a topic. Please choose a letter from A to E to begin.";
             }
 
-            return "Here is another way to think about it:" + Environment.NewLine + SelectTopicResponse(previousTopic);
+            return BuildAnswerWithPrompt("Here is another way to think about it:" + Environment.NewLine + SelectTopicResponse(previousTopic));
         }
 
         private string GetUnknownTopicResponse()
@@ -387,10 +465,24 @@ namespace Securitybot
             {
                 return "I am not sure I understand that topic yet. Since you like "
                     + userMemory.FavouriteTopic
-                    + ", you can ask for another tip about it, or ask about passwords, phishing, scams, privacy, or safe browsing.";
+                    + ", you can ask about passwords, phishing, scams, privacy, or safe browsing." + Environment.NewLine
+                    + GetNextStepPrompt();
             }
 
-            return "I am not sure I understand that topic yet. Try asking me about passwords, phishing, scams, privacy, or safe browsing.";
+            return "I am not sure I understand that topic yet. Try asking me about passwords, phishing, scams, privacy, or safe browsing." + Environment.NewLine
+                + GetNextStepPrompt();
+        }
+
+        private string GetNextStepPrompt()
+        {
+            return "Do you need more help, or are you satisfied with the answer?" + Environment.NewLine
+                + "F) I need more help" + Environment.NewLine
+                + "G) I am satisfied";
+        }
+
+        private string BuildAnswerWithPrompt(string answer)
+        {
+            return answer + Environment.NewLine + GetNextStepPrompt();
         }
     }
 }

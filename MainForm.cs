@@ -114,7 +114,7 @@ namespace Securitybot
                 ForeColor = Color.FromArgb(255, 247, 230),
                 BackColor = Color.FromArgb(67, 51, 39),
                 BorderStyle = BorderStyle.FixedSingle,
-                PlaceholderText = "Type a cybersecurity topic here, for example password or phishing"
+                PlaceholderText = "Type your response here"
             };
         }
 
@@ -135,7 +135,13 @@ namespace Securitybot
         {
             AudioGreeting.PlayGreeting();
             AddBotMessage(chatbotEngine.GetOpeningMessage());
-            AddBotMessage(chatbotEngine.GetProgressMessage());
+
+            string progressMessage = chatbotEngine.GetProgressMessage();
+
+            if (!string.IsNullOrWhiteSpace(progressMessage))
+            {
+                AddBotMessage(progressMessage);
+            }
         }
 
         private void MainForm_Shown(object? sender, EventArgs e)
@@ -182,7 +188,7 @@ namespace Securitybot
 
         private void AddUserMessage(string message)
         {
-            chatDisplay.AppendText($"You: {message}{Environment.NewLine}{Environment.NewLine}");
+            chatDisplay.AppendText($"{message}{Environment.NewLine}{Environment.NewLine}");
         }
 
         private void AddBotMessage(string message)
