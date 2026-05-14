@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+README-local-backup.md
+build.yml
+.gitigonre

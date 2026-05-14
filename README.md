@@ -1,34 +1,74 @@
-README.textfile
+# SecurityBot - Cybersecurity Awareness Assistant
 
+Student number: ST10283668
 
-ST1O283668
+SecurityBot is a Windows Forms cybersecurity awareness chatbot created for Programming 2A Part 2. The application teaches users about common online safety topics in a simple conversation format.
 
-SEcurityBot is bot that focus on cyber security .The user has a choice on whtere thye want to learn about cyber securirty or they can ask the bot for advice on hoow prevent or tackle a cyber secuirty issue they have.
+## Part 2 Features
 
-The firs visuals you see when you open SEcurityBot is the flames of fire above the "Welocme to SecurityBot" text shows both thbots focus on the dangers of cyber attacks and protecting the user from attacks.
+- Windows Forms graphical interface.
+- Voice greeting using `welcome.wav`.
+- ASCII-style SecurityBot banner displayed inside the GUI.
+- Dictionary and List based cybersecurity responses.
+- Keyword recognition for password safety, phishing, scams, privacy, and safe browsing.
+- Random response selection so the bot does not always repeat the same answer.
+- Follow-up handling for messages such as `tell me more`, `another tip`, `explain more`, `I'm confused`, and `I don't know`.
+- User memory for the user's name and favourite cybersecurity topic.
+- Recall feature for questions such as `what is my name?`.
+- Sentiment detection for angry, confused, sad, and happy messages.
+- Friendly fallback response for unsupported topics.
+- Try-catch exception handling around message processing and audio playback.
 
+## How To Run
 
-The bot opens by asking you ypur name along with a Aubile Welcome messag eto the user 
-It gives you the option to learn about cyber security or ask for advice on how to prevent or tackle a cyber security issue you have.
-If you choose to learn about cyber security, the bot will provide you with information on topics  such as common cyber threats, best practices for online safety, and tips for creating strong passwords. 
-If you choose to ask for advice, the bot will ask you about your specific issue and provide you with tailored recommendations on how to address it.
+1. Open the project in Visual Studio.
+2. Restore NuGet packages if Visual Studio asks.
+3. Build the project.
+4. Run the project.
+5. Type your answers in the input box at the bottom of the window and press Send.
 
-If you choose to learn about cyber security, then you will be given a list of topics to choose from, such as "Phishing Attacks,   and "Password Security.
-If you choose to ask for advice, the bot will ask you about your specific issue and provide you with tailored recommendations on how to address it. Example if you have a problem with a untrustworthy password the bot will address that .
+The bot starts by asking for your name. It then asks for your favourite cybersecurity topic:
 
+```text
+A) Password safety
+B) Phishing awareness
+C) Privacy protection
+D) Scam prevention
+E) Safe browsing
+```
 
-The bot is designed to be user-friendly and easy to navigate, with clear instructions and a simple interface.
+## Example Questions
 
-                              FEATURES
-                              ASCII Art: The bot features ASCII art of flames of fire above the welcome message
-                              AUDIBLE WELCOME MESSAGE: The bot greets the user with an audible welcome message when they first interact with it
-                              CYBER SECURITY EDUCATION: The bot provides information on various cyber security topics, such as common threats and best practices for online
-                              CYBER SECURITY ADVICE: The bot offers tailored recommendations for users who have specific cyber security issues or concerns
-These are all in mind of it being user friendly and easy to navigate, with clear instructions and a simple interface.   
+```text
+password
+phishing
+privacy
+another tip
+tell me more
+what is my name?
+I am confused
+I am angry about scams
+```
 
+## Project Structure
 
+- `Program.cs` starts the Windows Forms application.
+- `MainForm.cs` contains the graphical user interface.
+- `ChatbotEngine.cs` contains the chatbot response logic.
+- `UserMemory.cs` stores user details used during the conversation.
+- `AudioGreeting.cs` plays the WAV greeting.
+- `Display.cs` stores the ASCII banner text.
+- `.github/workflows/build.yml` contains the GitHub Actions build workflow.
 
-                                 REFERENCES
-                                 1. patorijk.com - ASCII Art Generator. (n.d.). Retrieved from https://www.patorjk.com/software/taag/#p=display&f=Big&t=Welcome%20to%20SecurityBot
-                                 2.Kosinski, M. (2026) What is phishing?, IBM. Available at: https://www.ibm.com/think/topics/phishing (Accessed: 31 March 2026). 
-                                 3.Chen, A., Alexandra Chen              	After years of coding and explaining things to my confused friends (we’ve all been there!) and Hyde, T. (2025) Safe browsing explained: How to stay private in 2025, Blackdown. Available at: https://www.blackdown.org/safe-browsing-explained/ (Accessed: 31 March 2026). 
+## Submission Notes
+
+- The repository contains the source code and multimedia greeting file.
+- GitHub Actions is configured to restore and build the project.
+- The video presentation link can be added here before final ARC submission.
+- A screenshot of a successful GitHub Actions run should be added to the repository or README before final submission.
+
+## References
+
+1. Pieterse, H. 2021. The Cyber Threat Landscape in South Africa: A 10-Year Review. The African Journal of Information and Communication, 28(28).
+2. IBM. What is phishing? Available at: https://www.ibm.com/think/topics/phishing
+3. Pat or JK. ASCII Art Generator. Available at: https://www.patorjk.com/software/taag/
