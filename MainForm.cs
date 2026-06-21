@@ -8,6 +8,7 @@ namespace Securitybot
         private readonly ChatbotEngine chatbotEngine;
         private readonly TaskRepository taskRepository;
         private readonly List<TaskItem> cybersecurityTasks;
+        private readonly List<QuizQuestion> quizQuestions;
         private readonly TextBox chatDisplay;
         private readonly TextBox messageInput;
         private readonly Button sendButton;
@@ -17,12 +18,25 @@ namespace Securitybot
         private ComboBox? taskCategoryBox;
         private Label? taskReminderSummaryLabel;
         private ListBox? taskListBox;
+        private Label? quizProgressLabel;
+        private Label? quizQuestionLabel;
+        private Label? quizFeedbackLabel;
+        private RadioButton? quizOptionA;
+        private RadioButton? quizOptionB;
+        private RadioButton? quizOptionC;
+        private RadioButton? quizOptionD;
+        private Button? quizSubmitButton;
+        private Button? quizRestartButton;
+        private int currentQuizIndex;
+        private int quizScore;
+        private bool quizAnswered;
 
         public MainForm()
         {
             chatbotEngine = new ChatbotEngine();
             taskRepository = new TaskRepository();
             cybersecurityTasks = new List<TaskItem>();
+            quizQuestions = CreateQuizQuestions();
 
             Text = "SecurityBot - Cybersecurity Awareness Assistant";
             StartPosition = FormStartPosition.CenterScreen;
@@ -49,8 +63,12 @@ namespace Securitybot
             TabPage taskPage = CreateTabPage("Task Assistant");
             taskPage.Controls.Add(CreateTaskAssistantLayout());
 
+            TabPage quizPage = CreateTabPage("Quiz Game");
+            quizPage.Controls.Add(CreateQuizLayout());
+
             mainTabs.TabPages.Add(chatPage);
             mainTabs.TabPages.Add(taskPage);
+            mainTabs.TabPages.Add(quizPage);
             Controls.Add(mainTabs);
 
             Load += MainForm_Load;
@@ -255,6 +273,83 @@ namespace Securitybot
 
             button.FlatAppearance.BorderSize = 0;
             return button;
+        }
+
+        private TableLayoutPanel CreateQuizLayout()
+        {
+            TableLayoutPanel layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 8,
+                Padding = new Padding(18),
+                BackColor = Color.FromArgb(35, 28, 22)
+            };
+
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            quizProgressLabel = CreateQuizLabel("Question 1 of 10 | Score: 0", 12, FontStyle.Bold);
+            quizQuestionLabel = CreateQuizLabel(string.Empty, 12, FontStyle.Regular);
+            quizOptionA = CreateQuizOption();
+            quizOptionB = CreateQuizOption();
+            quizOptionC = CreateQuizOption();
+            quizOptionD = CreateQuizOption();
+            quizFeedbackLabel = CreateQuizLabel("Choose an answer and press Submit.", 10, FontStyle.Regular);
+
+            FlowLayoutPanel buttonPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false
+            };
+            quizSubmitButton = CreateTaskButton("Submit Answer");
+            quizRestartButton = CreateTaskButton("Restart Quiz");
+            quizSubmitButton.Click += QuizSubmitButton_Click;
+            quizRestartButton.Click += QuizRestartButton_Click;
+            buttonPanel.Controls.Add(quizSubmitButton);
+            buttonPanel.Controls.Add(quizRestartButton);
+
+            layout.Controls.Add(CreateQuizLabel("Cybersecurity Mini Quiz", 15, FontStyle.Bold), 0, 0);
+            layout.Controls.Add(quizQuestionLabel, 0, 1);
+            layout.Controls.Add(quizOptionA, 0, 2);
+            layout.Controls.Add(quizOptionB, 0, 3);
+            layout.Controls.Add(quizOptionC, 0, 4);
+            layout.Controls.Add(quizOptionD, 0, 5);
+            layout.Controls.Add(quizFeedbackLabel, 0, 6);
+            layout.Controls.Add(buttonPanel, 0, 7);
+
+            ShowQuizQuestion();
+            return layout;
+        }
+
+        private Label CreateQuizLabel(string text, int size, FontStyle style)
+        {
+            return new Label
+            {
+                Text = text,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Font = new Font("Segoe UI", size, style),
+                ForeColor = Color.FromArgb(255, 247, 230)
+            };
+        }
+
+        private RadioButton CreateQuizOption()
+        {
+            return new RadioButton
+            {
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 10, FontStyle.Regular),
+                ForeColor = Color.FromArgb(255, 247, 230),
+                AutoSize = false
+            };
         }
 
         private Label CreateTitleLabel()
@@ -487,6 +582,264 @@ namespace Securitybot
                 MessageBox.Show("The task could not be deleted. Please try again.", "Task Assistant");
                 System.Diagnostics.Debug.WriteLine(ex.Message);
             }
+        }
+
+        private void QuizSubmitButton_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                if (quizAnswered)
+                {
+                    MoveToNextQuizQuestion();
+                    return;
+                }
+
+                int selectedIndex = GetSelectedQuizIndex();
+
+                if (selectedIndex < 0)
+                {
+                    SetQuizFeedback("Please choose A, B, C, or D before submitting.");
+                    return;
+                }
+
+                QuizQuestion question = quizQuestions[currentQuizIndex];
+                quizAnswered = true;
+
+                if (selectedIndex == question.CorrectIndex)
+                {
+                    quizScore++;
+                    SetQuizFeedback("Correct. " + question.Explanation);
+                }
+                else
+                {
+                    SetQuizFeedback("Not quite. " + question.Explanation);
+                }
+
+                if (quizSubmitButton != null)
+                {
+                    quizSubmitButton.Text = currentQuizIndex == quizQuestions.Count - 1 ? "Finish Quiz" : "Next Question";
+                }
+
+                UpdateQuizProgress();
+            }
+            catch (Exception ex)
+            {
+                SetQuizFeedback("Something went wrong in the quiz. Please try again.");
+                System.Diagnostics.Debug.WriteLine(ex.Message);
+            }
+        }
+
+        private void QuizRestartButton_Click(object? sender, EventArgs e)
+        {
+            currentQuizIndex = 0;
+            quizScore = 0;
+            quizAnswered = false;
+            ShowQuizQuestion();
+        }
+
+        private void MoveToNextQuizQuestion()
+        {
+            if (currentQuizIndex >= quizQuestions.Count - 1)
+            {
+                ShowQuizResults();
+                return;
+            }
+
+            currentQuizIndex++;
+            quizAnswered = false;
+            ShowQuizQuestion();
+        }
+
+        private void ShowQuizQuestion()
+        {
+            if (quizQuestionLabel == null || quizOptionA == null || quizOptionB == null || quizOptionC == null || quizOptionD == null)
+            {
+                return;
+            }
+
+            QuizQuestion question = quizQuestions[currentQuizIndex];
+            quizQuestionLabel.Text = question.Question;
+            quizOptionA.Text = question.GetOptionText(0);
+            quizOptionB.Text = question.GetOptionText(1);
+            quizOptionC.Text = question.GetOptionText(2);
+            quizOptionD.Text = question.GetOptionText(3);
+            quizOptionA.Checked = false;
+            quizOptionB.Checked = false;
+            quizOptionC.Checked = false;
+            quizOptionD.Checked = false;
+            SetQuizOptionsEnabled(true);
+            SetQuizFeedback("Choose an answer and press Submit.");
+
+            if (quizSubmitButton != null)
+            {
+                quizSubmitButton.Text = "Submit Answer";
+            }
+
+            UpdateQuizProgress();
+        }
+
+        private void ShowQuizResults()
+        {
+            if (quizQuestionLabel == null)
+            {
+                return;
+            }
+
+            quizQuestionLabel.Text = $"Quiz complete. Your final score is {quizScore} out of {quizQuestions.Count}.";
+            SetQuizOptionsEnabled(false);
+            SetQuizFeedback("Restart the quiz to try again and improve your cybersecurity knowledge.");
+
+            if (quizSubmitButton != null)
+            {
+                quizSubmitButton.Text = "Quiz Finished";
+                quizSubmitButton.Enabled = false;
+            }
+        }
+
+        private int GetSelectedQuizIndex()
+        {
+            if (quizOptionA != null && quizOptionA.Checked)
+            {
+                return 0;
+            }
+
+            if (quizOptionB != null && quizOptionB.Checked)
+            {
+                return 1;
+            }
+
+            if (quizOptionC != null && quizOptionC.Checked)
+            {
+                return 2;
+            }
+
+            if (quizOptionD != null && quizOptionD.Checked)
+            {
+                return 3;
+            }
+
+            return -1;
+        }
+
+        private void UpdateQuizProgress()
+        {
+            if (quizProgressLabel != null)
+            {
+                quizProgressLabel.Text = $"Question {currentQuizIndex + 1} of {quizQuestions.Count} | Score: {quizScore}";
+            }
+        }
+
+        private void SetQuizFeedback(string message)
+        {
+            if (quizFeedbackLabel != null)
+            {
+                quizFeedbackLabel.Text = message;
+            }
+        }
+
+        private void SetQuizOptionsEnabled(bool isEnabled)
+        {
+            if (quizOptionA != null)
+            {
+                quizOptionA.Enabled = isEnabled;
+            }
+
+            if (quizOptionB != null)
+            {
+                quizOptionB.Enabled = isEnabled;
+            }
+
+            if (quizOptionC != null)
+            {
+                quizOptionC.Enabled = isEnabled;
+            }
+
+            if (quizOptionD != null)
+            {
+                quizOptionD.Enabled = isEnabled;
+            }
+
+            if (quizSubmitButton != null)
+            {
+                quizSubmitButton.Enabled = true;
+            }
+        }
+
+        private List<QuizQuestion> CreateQuizQuestions()
+        {
+            return new List<QuizQuestion>
+            {
+                new QuizQuestion
+                {
+                    Question = "What is the safest way to handle a suspicious email link?",
+                    Options = new List<string> { "Click it quickly", "Forward it to friends", "Check the sender and avoid the link", "Reply with your password" },
+                    CorrectIndex = 2,
+                    Explanation = "Suspicious links should be checked carefully and avoided if they cannot be verified."
+                },
+                new QuizQuestion
+                {
+                    Question = "Which password is strongest?",
+                    Options = new List<string> { "password123", "Kjm2006", "Summer", "River!Candle72#Cloud" },
+                    CorrectIndex = 3,
+                    Explanation = "Long, unique passwords with mixed characters are harder to guess."
+                },
+                new QuizQuestion
+                {
+                    Question = "What does two-factor authentication add?",
+                    Options = new List<string> { "A second layer of account protection", "A faster internet connection", "A public profile", "A weaker password" },
+                    CorrectIndex = 0,
+                    Explanation = "Two-factor authentication adds another check besides only the password."
+                },
+                new QuizQuestion
+                {
+                    Question = "What should you do before downloading software?",
+                    Options = new List<string> { "Use any pop-up", "Check that the source is trusted", "Disable antivirus", "Share your banking PIN" },
+                    CorrectIndex = 1,
+                    Explanation = "Trusted sources reduce the risk of downloading malware."
+                },
+                new QuizQuestion
+                {
+                    Question = "Which detail can be a sign of phishing?",
+                    Options = new List<string> { "Urgent threats", "Official app store update", "Known contact number", "Clear privacy policy" },
+                    CorrectIndex = 0,
+                    Explanation = "Phishing often uses panic and urgency to pressure people into mistakes."
+                },
+                new QuizQuestion
+                {
+                    Question = "What is safe browsing?",
+                    Options = new List<string> { "Clicking every advert", "Ignoring browser warnings", "Using trusted sites and checking addresses", "Downloading unknown attachments" },
+                    CorrectIndex = 2,
+                    Explanation = "Checking websites and avoiding unknown downloads helps keep browsing safer."
+                },
+                new QuizQuestion
+                {
+                    Question = "Why should app permissions be reviewed?",
+                    Options = new List<string> { "To give every app full access", "To limit unnecessary access to personal data", "To remove passwords", "To make scams easier" },
+                    CorrectIndex = 1,
+                    Explanation = "Limiting permissions helps protect privacy."
+                },
+                new QuizQuestion
+                {
+                    Question = "What should you do if a deal online looks too good to be true?",
+                    Options = new List<string> { "Pay immediately", "Verify the seller and website first", "Send your ID number", "Ignore all reviews" },
+                    CorrectIndex = 1,
+                    Explanation = "Scams often use fake deals, so verification is important."
+                },
+                new QuizQuestion
+                {
+                    Question = "What is malware?",
+                    Options = new List<string> { "Helpful software only", "Software designed to harm or steal data", "A strong password", "A privacy setting" },
+                    CorrectIndex = 1,
+                    Explanation = "Malware is malicious software that can damage devices or steal information."
+                },
+                new QuizQuestion
+                {
+                    Question = "What should you do after a password may be compromised?",
+                    Options = new List<string> { "Reuse it everywhere", "Post it online", "Change it and enable extra security", "Ignore it" },
+                    CorrectIndex = 2,
+                    Explanation = "Changing the password and adding extra protection reduces the damage."
+                }
+            };
         }
 
         private void LoadTasksFromDatabase()
