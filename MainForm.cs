@@ -6,6 +6,8 @@ namespace Securitybot
     internal class MainForm : Form
     {
         private readonly ChatbotEngine chatbotEngine;
+        private readonly TaskRepository taskRepository;
+        private readonly List<TaskItem> cybersecurityTasks;
         private readonly TextBox chatDisplay;
         private readonly TextBox messageInput;
         private readonly Button sendButton;
@@ -18,6 +20,8 @@ namespace Securitybot
         public MainForm()
         {
             chatbotEngine = new ChatbotEngine();
+            taskRepository = new TaskRepository();
+            cybersecurityTasks = new List<TaskItem>();
 
             Text = "SecurityBot - Cybersecurity Awareness Assistant";
             StartPosition = FormStartPosition.CenterScreen;
@@ -160,9 +164,15 @@ namespace Securitybot
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false
             };
-            buttonPanel.Controls.Add(CreateTaskButton("Add Task"));
-            buttonPanel.Controls.Add(CreateTaskButton("Mark Complete"));
-            buttonPanel.Controls.Add(CreateTaskButton("Delete"));
+            Button addTaskButton = CreateTaskButton("Add Task");
+            Button completeTaskButton = CreateTaskButton("Mark Complete");
+            Button deleteTaskButton = CreateTaskButton("Delete");
+            addTaskButton.Click += AddTaskButton_Click;
+            completeTaskButton.Click += CompleteTaskButton_Click;
+            deleteTaskButton.Click += DeleteTaskButton_Click;
+            buttonPanel.Controls.Add(addTaskButton);
+            buttonPanel.Controls.Add(completeTaskButton);
+            buttonPanel.Controls.Add(deleteTaskButton);
 
             taskListBox = new ListBox
             {
@@ -172,7 +182,7 @@ namespace Securitybot
                 BackColor = Color.FromArgb(255, 247, 230),
                 BorderStyle = BorderStyle.FixedSingle
             };
-            taskListBox.Items.Add("Task assistant interface ready. Database storage will be added next.");
+            taskListBox.Items.Add("Saved tasks will appear here.");
 
             layout.Controls.Add(heading, 0, 0);
             layout.SetColumnSpan(heading, 2);
@@ -308,6 +318,7 @@ namespace Securitybot
         private void MainForm_Load(object? sender, EventArgs e)
         {
             AudioGreeting.PlayGreeting();
+            LoadTasksFromDatabase();
             AddBotMessage(chatbotEngine.GetOpeningMessage());
 
             string progressMessage = chatbotEngine.GetProgressMessage();
@@ -357,6 +368,110 @@ namespace Securitybot
             {
                 AddBotMessage("Something went wrong while reading your message. Please try again.");
                 System.Diagnostics.Debug.WriteLine(ex.Message);
+            }
+        }
+
+        private void AddTaskButton_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                if (taskTitleInput == null || taskDescriptionInput == null || taskReminderPicker == null || taskCategoryBox == null)
+                {
+                    MessageBox.Show("Task controls are not ready yet.", "Task Assistant");
+                    return;
+                }
+
+                string title = taskTitleInput.Text.Trim();
+
+                if (string.IsNullOrWhiteSpace(title))
+                {
+                    MessageBox.Show("Please enter a task title.", "Task Assistant");
+                    return;
+                }
+
+                TaskItem task = new TaskItem
+                {
+                    Title = title,
+                    Description = taskDescriptionInput.Text.Trim(),
+                    ReminderDate = taskReminderPicker.Value,
+                    Category = taskCategoryBox.Text,
+                    IsComplete = false
+                };
+
+                task.Id = taskRepository.AddTask(task);
+                cybersecurityTasks.Add(task);
+                RefreshTaskList();
+                ClearTaskInputs();
+                MessageBox.Show("Task saved to the database.", "Task Assistant");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("The task could not be saved. Please try again.", "Task Assistant");
+                System.Diagnostics.Debug.WriteLine(ex.Message);
+            }
+        }
+
+        private void CompleteTaskButton_Click(object? sender, EventArgs e)
+        {
+            MessageBox.Show("Mark complete will be connected to the database in the next update.", "Task Assistant");
+        }
+
+        private void DeleteTaskButton_Click(object? sender, EventArgs e)
+        {
+            MessageBox.Show("Delete will be connected to the database in the next update.", "Task Assistant");
+        }
+
+        private void LoadTasksFromDatabase()
+        {
+            try
+            {
+                cybersecurityTasks.Clear();
+                cybersecurityTasks.AddRange(taskRepository.GetTasks());
+                RefreshTaskList();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Saved tasks could not be loaded.", "Task Assistant");
+                System.Diagnostics.Debug.WriteLine(ex.Message);
+            }
+        }
+
+        private void RefreshTaskList()
+        {
+            if (taskListBox == null)
+            {
+                return;
+            }
+
+            taskListBox.Items.Clear();
+
+            if (cybersecurityTasks.Count == 0)
+            {
+                taskListBox.Items.Add("No saved tasks yet.");
+                return;
+            }
+
+            foreach (TaskItem task in cybersecurityTasks)
+            {
+                taskListBox.Items.Add(task.GetDisplayText());
+            }
+        }
+
+        private void ClearTaskInputs()
+        {
+            if (taskTitleInput != null)
+            {
+                taskTitleInput.Clear();
+            }
+
+            if (taskDescriptionInput != null)
+            {
+                taskDescriptionInput.Clear();
+            }
+
+            if (taskCategoryBox != null)
+            {
+                taskCategoryBox.SelectedIndex = 0;
             }
         }
 
