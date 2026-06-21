@@ -9,9 +9,15 @@ namespace Securitybot
         private readonly TaskRepository taskRepository;
         private readonly List<TaskItem> cybersecurityTasks;
         private readonly List<QuizQuestion> quizQuestions;
+        private readonly List<ActivityLogEntry> activityLogEntries;
         private readonly TextBox chatDisplay;
         private readonly TextBox messageInput;
         private readonly Button sendButton;
+        private TabControl? mainTabs;
+        private TabPage? chatPage;
+        private TabPage? taskPage;
+        private TabPage? quizPage;
+        private TabPage? activityLogPage;
         private TextBox? taskTitleInput;
         private TextBox? taskDescriptionInput;
         private DateTimePicker? taskReminderPicker;
@@ -27,9 +33,12 @@ namespace Securitybot
         private RadioButton? quizOptionD;
         private Button? quizSubmitButton;
         private Button? quizRestartButton;
+        private ListBox? activityLogListBox;
+        private Button? showMoreLogButton;
         private int currentQuizIndex;
         private int quizScore;
         private bool quizAnswered;
+        private int visibleLogCount = 5;
 
         public MainForm()
         {
@@ -37,13 +46,14 @@ namespace Securitybot
             taskRepository = new TaskRepository();
             cybersecurityTasks = new List<TaskItem>();
             quizQuestions = CreateQuizQuestions();
+            activityLogEntries = new List<ActivityLogEntry>();
 
             Text = "SecurityBot - Cybersecurity Awareness Assistant";
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new Size(900, 650);
             BackColor = Color.FromArgb(35, 28, 22);
 
-            TabControl mainTabs = CreateMainTabs();
+            mainTabs = CreateMainTabs();
             TableLayoutPanel layout = CreateChatLayout();
             Label titleLabel = CreateTitleLabel();
             TextBox logoBox = CreateLogoBox();
@@ -57,18 +67,22 @@ namespace Securitybot
             layout.Controls.Add(messageInput, 0, 3);
             layout.Controls.Add(sendButton, 0, 4);
 
-            TabPage chatPage = CreateTabPage("Chat");
+            chatPage = CreateTabPage("Chat");
             chatPage.Controls.Add(layout);
 
-            TabPage taskPage = CreateTabPage("Task Assistant");
+            taskPage = CreateTabPage("Task Assistant");
             taskPage.Controls.Add(CreateTaskAssistantLayout());
 
-            TabPage quizPage = CreateTabPage("Quiz Game");
+            quizPage = CreateTabPage("Quiz Game");
             quizPage.Controls.Add(CreateQuizLayout());
+
+            activityLogPage = CreateTabPage("Activity Log");
+            activityLogPage.Controls.Add(CreateActivityLogLayout());
 
             mainTabs.TabPages.Add(chatPage);
             mainTabs.TabPages.Add(taskPage);
             mainTabs.TabPages.Add(quizPage);
+            mainTabs.TabPages.Add(activityLogPage);
             Controls.Add(mainTabs);
 
             Load += MainForm_Load;
@@ -352,6 +366,41 @@ namespace Securitybot
             };
         }
 
+        private TableLayoutPanel CreateActivityLogLayout()
+        {
+            TableLayoutPanel layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                Padding = new Padding(18),
+                BackColor = Color.FromArgb(35, 28, 22)
+            };
+
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+
+            activityLogListBox = new ListBox
+            {
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 10, FontStyle.Regular),
+                ForeColor = Color.FromArgb(35, 28, 22),
+                BackColor = Color.FromArgb(255, 247, 230),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            showMoreLogButton = CreateTaskButton("Show More");
+            showMoreLogButton.Click += ShowMoreLogButton_Click;
+
+            layout.Controls.Add(CreateQuizLabel("Activity Log", 15, FontStyle.Bold), 0, 0);
+            layout.Controls.Add(activityLogListBox, 0, 1);
+            layout.Controls.Add(showMoreLogButton, 0, 2);
+
+            RefreshActivityLog();
+            return layout;
+        }
+
         private Label CreateTitleLabel()
         {
             return new Label
@@ -470,7 +519,17 @@ namespace Securitybot
 
                 AddUserMessage(message);
                 messageInput.Clear();
+
+                string? commandIntent = chatbotEngine.GetCommandIntent(message);
+
+                if (commandIntent != null)
+                {
+                    HandleChatCommand(commandIntent);
+                    return;
+                }
+
                 AddBotMessage(chatbotEngine.GetResponse(message));
+                AddActivityLog("Chatbot responded to a user message.");
             }
             catch (Exception ex)
             {
@@ -510,6 +569,7 @@ namespace Securitybot
                 cybersecurityTasks.Add(task);
                 RefreshTaskList();
                 ClearTaskInputs();
+                AddActivityLog("Task added: " + task.Title);
                 MessageBox.Show("Task saved to the database.", "Task Assistant");
             }
             catch (Exception ex)
@@ -540,6 +600,7 @@ namespace Securitybot
                 taskRepository.MarkTaskComplete(selectedTask.Id);
                 selectedTask.IsComplete = true;
                 RefreshTaskList();
+                AddActivityLog("Task completed: " + selectedTask.Title);
                 MessageBox.Show("Task marked as complete.", "Task Assistant");
             }
             catch (Exception ex)
@@ -575,6 +636,7 @@ namespace Securitybot
                 taskRepository.DeleteTask(selectedTask.Id);
                 cybersecurityTasks.Remove(selectedTask);
                 RefreshTaskList();
+                AddActivityLog("Task deleted: " + selectedTask.Title);
                 MessageBox.Show("Task deleted.", "Task Assistant");
             }
             catch (Exception ex)
@@ -609,10 +671,12 @@ namespace Securitybot
                 {
                     quizScore++;
                     SetQuizFeedback("Correct. " + question.Explanation);
+                    AddActivityLog($"Quiz question {currentQuizIndex + 1} answered correctly.");
                 }
                 else
                 {
                     SetQuizFeedback("Not quite. " + question.Explanation);
+                    AddActivityLog($"Quiz question {currentQuizIndex + 1} answered incorrectly.");
                 }
 
                 if (quizSubmitButton != null)
@@ -635,6 +699,7 @@ namespace Securitybot
             quizScore = 0;
             quizAnswered = false;
             ShowQuizQuestion();
+            AddActivityLog("Quiz restarted.");
         }
 
         private void MoveToNextQuizQuestion()
@@ -688,6 +753,7 @@ namespace Securitybot
             quizQuestionLabel.Text = $"Quiz complete. Your final score is {quizScore} out of {quizQuestions.Count}.";
             SetQuizOptionsEnabled(false);
             SetQuizFeedback("Restart the quiz to try again and improve your cybersecurity knowledge.");
+            AddActivityLog($"Quiz completed with score {quizScore} out of {quizQuestions.Count}.");
 
             if (quizSubmitButton != null)
             {
@@ -855,6 +921,78 @@ namespace Securitybot
                 MessageBox.Show("Saved tasks could not be loaded.", "Task Assistant");
                 System.Diagnostics.Debug.WriteLine(ex.Message);
             }
+        }
+
+        private void HandleChatCommand(string commandIntent)
+        {
+            if (mainTabs == null)
+            {
+                return;
+            }
+
+            if (commandIntent == "tasks" && taskPage != null)
+            {
+                mainTabs.SelectedTab = taskPage;
+                AddBotMessage("I opened the Task Assistant. You can add a cybersecurity task with a reminder.");
+                AddActivityLog("NLP command opened the Task Assistant.");
+            }
+            else if (commandIntent == "quiz" && quizPage != null)
+            {
+                mainTabs.SelectedTab = quizPage;
+                AddBotMessage("I opened the Cybersecurity Mini Quiz. Choose an answer and press Submit.");
+                AddActivityLog("NLP command opened the quiz.");
+            }
+            else if (commandIntent == "log" && activityLogPage != null)
+            {
+                mainTabs.SelectedTab = activityLogPage;
+                AddBotMessage("I opened the Activity Log.");
+                AddActivityLog("NLP command opened the Activity Log.");
+            }
+        }
+
+        private void AddActivityLog(string summary)
+        {
+            activityLogEntries.Insert(0, new ActivityLogEntry
+            {
+                Summary = summary
+            });
+
+            RefreshActivityLog();
+        }
+
+        private void RefreshActivityLog()
+        {
+            if (activityLogListBox == null)
+            {
+                return;
+            }
+
+            activityLogListBox.Items.Clear();
+
+            if (activityLogEntries.Count == 0)
+            {
+                activityLogListBox.Items.Add("No activity recorded yet.");
+            }
+            else
+            {
+                int itemsToShow = Math.Min(visibleLogCount, activityLogEntries.Count);
+
+                for (int index = 0; index < itemsToShow; index++)
+                {
+                    activityLogListBox.Items.Add(activityLogEntries[index].GetDisplayText());
+                }
+            }
+
+            if (showMoreLogButton != null)
+            {
+                showMoreLogButton.Enabled = visibleLogCount < activityLogEntries.Count;
+            }
+        }
+
+        private void ShowMoreLogButton_Click(object? sender, EventArgs e)
+        {
+            visibleLogCount += 5;
+            RefreshActivityLog();
         }
 
         private void RefreshTaskList()

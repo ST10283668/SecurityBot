@@ -215,6 +215,62 @@ namespace Securitybot
             }
         }
 
+        public string? GetCommandIntent(string userMessage)
+        {
+            List<string> words = GetWords(userMessage);
+            bool hasTask = false;
+            bool hasQuiz = false;
+            bool hasLog = false;
+            bool hasShow = false;
+            bool hasStart = false;
+            bool hasAdd = false;
+
+            foreach (string word in words)
+            {
+                if (word == "task" || word == "tasks" || word == "reminder" || word == "reminders")
+                {
+                    hasTask = true;
+                }
+                else if (word == "quiz" || word == "game")
+                {
+                    hasQuiz = true;
+                }
+                else if (word == "log" || word == "activity")
+                {
+                    hasLog = true;
+                }
+                else if (word == "show" || word == "view" || word == "open")
+                {
+                    hasShow = true;
+                }
+                else if (word == "start" || word == "play")
+                {
+                    hasStart = true;
+                }
+                else if (word == "add" || word == "create")
+                {
+                    hasAdd = true;
+                }
+            }
+
+            if (hasQuiz && (hasStart || hasShow || hasQuiz))
+            {
+                return "quiz";
+            }
+
+            if (hasTask && (hasShow || hasAdd || hasTask))
+            {
+                return "tasks";
+            }
+
+            if (hasLog && (hasShow || hasLog))
+            {
+                return "log";
+            }
+
+            return null;
+        }
+
         private string SaveName(string userMessage)
         {
             userMemory.UserName = userMessage.Trim();
