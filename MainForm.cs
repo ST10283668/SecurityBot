@@ -15,6 +15,7 @@ namespace Securitybot
         private TextBox? taskDescriptionInput;
         private DateTimePicker? taskReminderPicker;
         private ComboBox? taskCategoryBox;
+        private Label? taskReminderSummaryLabel;
         private ListBox? taskListBox;
 
         public MainForm()
@@ -104,7 +105,7 @@ namespace Securitybot
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 7,
+                RowCount = 8,
                 Padding = new Padding(16),
                 BackColor = Color.FromArgb(35, 28, 22)
             };
@@ -117,6 +118,7 @@ namespace Securitybot
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             Label heading = new Label
@@ -174,6 +176,15 @@ namespace Securitybot
             buttonPanel.Controls.Add(completeTaskButton);
             buttonPanel.Controls.Add(deleteTaskButton);
 
+            taskReminderSummaryLabel = new Label
+            {
+                Text = "Reminder summary will appear here.",
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(255, 247, 230)
+            };
+
             taskListBox = new ListBox
             {
                 Dock = DockStyle.Fill,
@@ -195,7 +206,9 @@ namespace Securitybot
             layout.Controls.Add(CreateTaskLabel("Category"), 0, 4);
             layout.Controls.Add(taskCategoryBox, 1, 4);
             layout.Controls.Add(buttonPanel, 1, 5);
-            layout.Controls.Add(taskListBox, 0, 6);
+            layout.Controls.Add(taskReminderSummaryLabel, 0, 6);
+            layout.SetColumnSpan(taskReminderSummaryLabel, 2);
+            layout.Controls.Add(taskListBox, 0, 7);
             layout.SetColumnSpan(taskListBox, 2);
 
             return layout;
@@ -413,12 +426,67 @@ namespace Securitybot
 
         private void CompleteTaskButton_Click(object? sender, EventArgs e)
         {
-            MessageBox.Show("Mark complete will be connected to the database in the next update.", "Task Assistant");
+            try
+            {
+                TaskItem? selectedTask = GetSelectedTask();
+
+                if (selectedTask == null)
+                {
+                    MessageBox.Show("Please select a task first.", "Task Assistant");
+                    return;
+                }
+
+                if (selectedTask.IsComplete)
+                {
+                    MessageBox.Show("This task is already marked as complete.", "Task Assistant");
+                    return;
+                }
+
+                taskRepository.MarkTaskComplete(selectedTask.Id);
+                selectedTask.IsComplete = true;
+                RefreshTaskList();
+                MessageBox.Show("Task marked as complete.", "Task Assistant");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("The task could not be updated. Please try again.", "Task Assistant");
+                System.Diagnostics.Debug.WriteLine(ex.Message);
+            }
         }
 
         private void DeleteTaskButton_Click(object? sender, EventArgs e)
         {
-            MessageBox.Show("Delete will be connected to the database in the next update.", "Task Assistant");
+            try
+            {
+                TaskItem? selectedTask = GetSelectedTask();
+
+                if (selectedTask == null)
+                {
+                    MessageBox.Show("Please select a task first.", "Task Assistant");
+                    return;
+                }
+
+                DialogResult result = MessageBox.Show(
+                    "Are you sure you want to delete this task?",
+                    "Task Assistant",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (result != DialogResult.Yes)
+                {
+                    return;
+                }
+
+                taskRepository.DeleteTask(selectedTask.Id);
+                cybersecurityTasks.Remove(selectedTask);
+                RefreshTaskList();
+                MessageBox.Show("Task deleted.", "Task Assistant");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("The task could not be deleted. Please try again.", "Task Assistant");
+                System.Diagnostics.Debug.WriteLine(ex.Message);
+            }
         }
 
         private void LoadTasksFromDatabase()
@@ -448,6 +516,7 @@ namespace Securitybot
             if (cybersecurityTasks.Count == 0)
             {
                 taskListBox.Items.Add("No saved tasks yet.");
+                UpdateReminderSummary();
                 return;
             }
 
@@ -455,6 +524,57 @@ namespace Securitybot
             {
                 taskListBox.Items.Add(task.GetDisplayText());
             }
+
+            UpdateReminderSummary();
+        }
+
+        private void UpdateReminderSummary()
+        {
+            if (taskReminderSummaryLabel == null)
+            {
+                return;
+            }
+
+            int pendingCount = 0;
+            int dueSoonCount = 0;
+            int overdueCount = 0;
+            DateTime now = DateTime.Now;
+
+            foreach (TaskItem task in cybersecurityTasks)
+            {
+                if (task.IsComplete)
+                {
+                    continue;
+                }
+
+                pendingCount++;
+
+                if (task.ReminderDate < now)
+                {
+                    overdueCount++;
+                }
+                else if (task.ReminderDate <= now.AddDays(1))
+                {
+                    dueSoonCount++;
+                }
+            }
+
+            taskReminderSummaryLabel.Text = $"Reminders: {pendingCount} pending | {dueSoonCount} due within 24 hours | {overdueCount} overdue";
+        }
+
+        private TaskItem? GetSelectedTask()
+        {
+            if (taskListBox == null || taskListBox.SelectedIndex < 0)
+            {
+                return null;
+            }
+
+            if (taskListBox.Items.Count != cybersecurityTasks.Count)
+            {
+                return null;
+            }
+
+            return cybersecurityTasks[taskListBox.SelectedIndex];
         }
 
         private void ClearTaskInputs()

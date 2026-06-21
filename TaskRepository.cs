@@ -64,6 +64,33 @@ namespace Securitybot
             return Convert.ToInt32(result);
         }
 
+        public void MarkTaskComplete(int taskId)
+        {
+            using SqliteConnection connection = new SqliteConnection(connectionString);
+            connection.Open();
+
+            using SqliteCommand command = connection.CreateCommand();
+            command.CommandText = @"
+                UPDATE Tasks
+                SET IsComplete = 1
+                WHERE Id = $id;";
+            command.Parameters.AddWithValue("$id", taskId);
+            command.ExecuteNonQuery();
+        }
+
+        public void DeleteTask(int taskId)
+        {
+            using SqliteConnection connection = new SqliteConnection(connectionString);
+            connection.Open();
+
+            using SqliteCommand command = connection.CreateCommand();
+            command.CommandText = @"
+                DELETE FROM Tasks
+                WHERE Id = $id;";
+            command.Parameters.AddWithValue("$id", taskId);
+            command.ExecuteNonQuery();
+        }
+
         private void CreateDatabase()
         {
             using SqliteConnection connection = new SqliteConnection(connectionString);
