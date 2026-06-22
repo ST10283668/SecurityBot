@@ -845,7 +845,7 @@ namespace Securitybot
                 new QuizQuestion
                 {
                     Question = "Which password is strongest?",
-                    Options = new List<string> { "password123", "Kjm2006", "Summer", "River!Candle72#Cloud" },
+                    Options = new List<string> { "John2006", "password123", "Summer", "River!Candle72#Cloud" },
                     CorrectIndex = 3,
                     Explanation = "Long, unique passwords with mixed characters are harder to guess."
                 },
